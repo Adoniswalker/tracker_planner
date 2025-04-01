@@ -1,36 +1,19 @@
-import React, { useState, useEffect } from "react";
-import { MapContainer, TileLayer, Marker, Polyline, useMap } from "react-leaflet";
+import {useState} from "react";
+import {MapContainer, TileLayer, Polyline} from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import L from "leaflet";
+import {isValidCoordinates} from "../helpers/validators.tsx";
+// import L from "leaflet";
 
-const MAPBOX_ACCESS_TOKEN = ""
-const MAPBOX_DIRECTIONS_API = "https://api.mapbox.com/directions/v5/mapbox/driving";
-
-const isValidCoordinates = (coordStr) => {
-    const parts = coordStr.split(",").map((part) => part.trim());
-    if (parts.length !== 2) return false;
-    const lat = parseFloat(parts[0]);
-    const lon = parseFloat(parts[1]);
-    return (
-        !isNaN(lat) &&
-        !isNaN(lon) &&
-        lat >= -90 &&
-        lat <= 90 &&
-        lon >= -180 &&
-        lon <= 180
-    );
-};
-
-const MapUpdater = ({ waypoints }) => {
-    const map = useMap();
-    useEffect(() => {
-        if (waypoints.length > 0) {
-            const bounds = L.latLngBounds(waypoints);
-            map.fitBounds(bounds);
-        }
-    }, [waypoints, map]);
-    return null;
-};
+// const MapUpdater = ({waypoints}) => {
+//     const map = useMap();
+//     useEffect(() => {
+//         if (waypoints.length > 0) {
+//             const bounds = L.latLngBounds(waypoints);
+//             map.fitBounds(bounds);
+//         }
+//     }, [waypoints, map]);
+//     return null;
+// };
 
 export default function Dashboard() {
     const [trip, setTrip] = useState({
@@ -39,40 +22,38 @@ export default function Dashboard() {
         dropoffLocation: "",
         cycleHours: "",
     });
-    const [waypoints, setWaypoints] = useState([]);
+    // const [waypoints, setWaypoints] = useState([]);
     const [route, setRoute] = useState([]);
 
-    const handleChange = (e) => {
-        setTrip({ ...trip, [e.target.name]: e.target.value });
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setTrip({...trip, [e.target.name]: e.target.value});
     };
 
-    const fetchRoute = async (waypoints) => {
-        const coordinates = waypoints.map(point => point.reverse().join(",")).join(";");
-        const url = `${MAPBOX_DIRECTIONS_API}/${coordinates}?geometries=geojson&access_token=${MAPBOX_ACCESS_TOKEN}`;
+    const fetchRoute = async (waypoints: { current: [number, number]; pickup: [number, number]; dropoff: [number, number]; }) => {
+        const url = `${import.meta.env.VITE_BACKEND_URL}/api/directions/`
         try {
-            const response = await fetch(url);
+            const response = await fetch(url, {
+                method: 'POST',
+                body: JSON.stringify(waypoints)
+            });
             const data = await response.json();
-            if (data.routes.length > 0) {
-                setRoute(data.routes[0].geometry.coordinates.map(coord => [coord[1], coord[0]]));
+            if (data.route.routes.length > 0) {
+                setRoute(data.route.routes[0].geometry.coordinates.map((coord: [number, number]) => [coord[1], coord[0]]));
             }
         } catch (error) {
             console.error("Error fetching route:", error);
         }
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        if (
-            isValidCoordinates(trip.currentLocation) &&
-            isValidCoordinates(trip.pickupLocation) &&
-            isValidCoordinates(trip.dropoffLocation)
-        ) {
-            const current = trip.currentLocation.split(",").map(parseFloat);
-            const pickup = trip.pickupLocation.split(",").map(parseFloat);
-            const dropoff = trip.dropoffLocation.split(",").map(parseFloat);
-            const newWaypoints = [current, pickup, dropoff];
-            setWaypoints(newWaypoints);
-            fetchRoute(newWaypoints);
+        const current = isValidCoordinates(trip.currentLocation);
+        const pickup = isValidCoordinates(trip.pickupLocation);
+        const dropoff = isValidCoordinates(trip.dropoffLocation)
+
+        if (current && pickup && dropoff) {
+            const wayPoints = {current, pickup, dropoff}
+            fetchRoute(wayPoints);
         } else {
             alert("One of your locations is invalid");
         }
@@ -102,13 +83,13 @@ export default function Dashboard() {
             </form>
 
             <div className="mt-6 h-64 border rounded-lg overflow-hidden">
-                <MapContainer center={[-1.2921, 36.8219]} zoom={6} style={{ height: "100%", width: "100%" }}>
-                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                    <MapUpdater waypoints={waypoints} />
-                    {waypoints.map((point, index) => (
-                        <Marker key={index} position={point} />
-                    ))}
-                    {route.length > 1 && <Polyline positions={route} color="blue" />}
+                <MapContainer center={[-1.2921, 36.8219]} zoom={6} style={{height: "100%", width: "100%"}}>
+                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"/>
+                    {/*<MapUpdater waypoints={waypoints}/>*/}
+                    {/*{waypoints.map((point, index) => (*/}
+                    {/*    <Marker key={index} position={point}/>*/}
+                    {/*))}*/}
+                    {route.length > 1 && <Polyline positions={route} color="blue"/>}
                 </MapContainer>
             </div>
         </div>
