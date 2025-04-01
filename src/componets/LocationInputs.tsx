@@ -37,8 +37,8 @@ export default function Dashboard() {
                 body: JSON.stringify(waypoints)
             });
             const data = await response.json();
-            if (data.route.routes.length > 0) {
-                setRoute(data.route.routes[0].geometry.coordinates.map((coord: [number, number]) => [coord[1], coord[0]]));
+            if (data.route.coordinates.length > 0) {
+                setRoute(data.route.coordinates.map((coord: [number, number]) => [coord[1], coord[0]]));
             }
         } catch (error) {
             console.error("Error fetching route:", error);
